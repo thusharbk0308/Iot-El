@@ -9,9 +9,7 @@ venv/
 env/
 ENV/
 
-# Project-specific database and logs
-dataset/
-embeddings/
+# Project-specific logs (retained in gitignore)
 logs/
 access_log.csv
 
