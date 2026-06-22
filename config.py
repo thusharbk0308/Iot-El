@@ -3,8 +3,12 @@
 # ==========================================
 
 # --- Connection Mode ---
-# Options: "WIFI" or "SERIAL"
-CONNECTION_MODE = "WIFI"
+# Options: "PI", "WIFI", or "SERIAL"
+CONNECTION_MODE = "PI"
+
+# --- Raspberry Pi Direct GPIO Configurations ---
+PI_SERVO_PIN = 18              # GPIO pin (BCM numbering, GPIO 18 is Physical Pin 12)
+UNLOCK_DURATION = 3.0          # Seconds to remain unlocked
 
 # --- Wi-Fi Credentials (Required for WIFI mode) ---
 # Enter your local Wi-Fi router settings here.

@@ -4,7 +4,7 @@ import time
 import torch
 import config
 from face_engine import FaceEngine
-from arduino_controller import ArduinoController
+from lock_controller import LockController
 from camera_stream import CameraStream
 
 def compute_iou(boxA, boxB):
@@ -29,7 +29,7 @@ def compute_iou(boxA, boxB):
     return interArea / float(unionArea)
 
 def main():
-    print("=== Real-time Face Recognition System (Arduino Integration) ===")
+    print("=== Real-time Face Recognition System (Lock Integration) ===")
     
     # 1. Load Face Database
     if not os.path.exists(config.DB_PATH):
@@ -46,17 +46,17 @@ def main():
         return
         
     # 2. Initialize Hardware Lock Controller
-    arduino = ArduinoController(port=config.ARDUINO_PORT, baudrate=config.BAUD_RATE)
+    lock = LockController(port=config.ARDUINO_PORT, baudrate=config.BAUD_RATE)
     hardware_active = False
     
-    if arduino.connect():
-        # Perform startup self-test handshake
-        if arduino.self_test():
-            print("[INFO] Hardware Mode active: Arduino connection confirmed.")
+    if lock.connect():
+        # Perform startup self-test check
+        if lock.self_test():
+            print("[INFO] Hardware Mode active: Lock controller connection confirmed.")
             hardware_active = True
         else:
-            print("[WARNING] Arduino failed handshake self-test. Running in Software-Only mode.")
-            arduino.close()
+            print("[WARNING] Lock failed startup self-test. Running in Software-Only mode.")
+            lock.close()
     else:
         print("[INFO] Running in Software-Only mode.")
         
@@ -69,7 +69,7 @@ def main():
     if not cap.isOpened():
         print("[ERROR] Could not open camera. Please verify connection and permissions.")
         if hardware_active:
-            arduino.close()
+            lock.close()
         return
     
     # Tracker & Hardware state
@@ -82,17 +82,17 @@ def main():
         while True:
             ret, frame = cap.read()
             if not ret:
-                print("[ERROR] Failed to read frame from webcam.")
+                print("[ERROR] Failed to read frame from camera.")
                 break
                 
             current_time = time.time()
             
-            # Non-blocking check for any acknowledgements coming from Arduino
+            # Non-blocking check for any acknowledgements (applicable in SERIAL mode)
             if hardware_active:
-                arduino.check_responses()
-                if not arduino.connected:
+                lock.check_responses()
+                if not lock.connected:
                     hardware_active = False
-                    print("[SERIAL] Connection to ESP32 lost. Falling back to Software-Only mode.")
+                    print("[HARDWARE] Connection to lock controller lost. Falling back to Software-Only mode.")
                 
             # Detect faces in the current frame
             boxes, probs = engine.detect_faces(frame)
@@ -143,16 +143,16 @@ def main():
                                         signal_sent = "No (Cooldown Active)"
                                         # Check unlock cooldown
                                         if current_time - last_unlock_time >= config.UNLOCK_COOLDOWN:
-                                            if hardware_active and arduino.open_lock():
+                                            if hardware_active and lock.open_lock():
                                                 last_unlock_time = current_time
                                                 signal_sent = "Yes"
-                                                print(f"[ACCESS] Triggered Arduino unlock for {name}.")
+                                                print(f"[ACCESS] Triggered lock unlock for {name}.")
                                             elif hardware_active:
                                                 signal_sent = "Failed"
-                                                print("[WARNING] Failed to send open command to Arduino.")
-                                                if not arduino.connected:
+                                                print("[WARNING] Failed to send open command to lock controller.")
+                                                if not lock.connected:
                                                     hardware_active = False
-                                                    print("[SERIAL] Connection to ESP32 lost. Falling back to Software-Only mode.")
+                                                    print("[HARDWARE] Connection to lock controller lost. Falling back to Software-Only mode.")
                                             else:
                                                 signal_sent = "No (Software-Only Mode)"
                                                 
@@ -188,16 +188,16 @@ def main():
                                 if name != "Unknown":
                                     signal_sent = "No (Cooldown Active)"
                                     if current_time - last_unlock_time >= config.UNLOCK_COOLDOWN:
-                                        if hardware_active and arduino.open_lock():
+                                        if hardware_active and lock.open_lock():
                                             last_unlock_time = current_time
                                             signal_sent = "Yes"
-                                            print(f"[ACCESS] Triggered Arduino unlock for {name}.")
+                                            print(f"[ACCESS] Triggered lock unlock for {name}.")
                                         elif hardware_active:
                                             signal_sent = "Failed"
-                                            print("[WARNING] Failed to send open command to Arduino.")
-                                            if not arduino.connected:
+                                            print("[WARNING] Failed to send open command to lock controller.")
+                                            if not lock.connected:
                                                 hardware_active = False
-                                                print("[SERIAL] Connection to ESP32 lost. Falling back to Software-Only mode.")
+                                                print("[HARDWARE] Connection to lock controller lost. Falling back to Software-Only mode.")
                                         else:
                                             signal_sent = "No (Software-Only Mode)"
                                             
@@ -248,7 +248,7 @@ def main():
                 )
                 
             # Draw status info on top of video feed
-            status_line = f"Tracks: {len(active_tracks)} | Hardware: {'ACTIVE' if hardware_active else 'SOFTWARE-ONLY'}"
+            status_line = f"Tracks: {len(active_tracks)} | Mode: {lock.mode} ({'ACTIVE' if hardware_active else 'SOFTWARE-ONLY'})"
             cv2.putText(
                 frame, status_line, (10, 25), 
                 cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 0), 1, cv2.LINE_AA
@@ -263,14 +263,14 @@ def main():
         # 5. Clean teardown on exit
         cap.release()
         cv2.destroyAllWindows()
-        if hardware_active and arduino.connected:
+        if hardware_active and lock.connected:
             # Send an explicit Lock command on shutdown to ensure door locks
             print("[INFO] Shutting down. Locking hardware...")
-            arduino.close_lock()
-            arduino.close()
-        elif arduino.serial and arduino.serial.is_open:
-            arduino.close()
-        print("[INFO] Webcam feed terminated. Goodbye.")
+            lock.close_lock()
+            lock.close()
+        elif lock.serial and lock.serial.is_open:
+            lock.close()
+        print("[INFO] Camera stream terminated. Goodbye.")
 
 if __name__ == "__main__":
     main()
