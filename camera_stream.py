@@ -1,10 +1,11 @@
 import cv2
+import config
 
 class CameraStream:
     def __init__(self, src=0):
         """
         Dynamically detects the platform and camera hardware.
-        Uses Picamera2 for Raspberry Pi CSI camera module if available,
+        Uses Picamera2 for Raspberry Pi CSI camera module if config.USE_CSI_CAMERA is True and available,
         otherwise falls back to standard OpenCV cv2.VideoCapture (for USB webcams/PCs).
         """
         self.src = src
@@ -14,17 +15,18 @@ class CameraStream:
         
         # Try importing picamera2 to detect if running on a Raspberry Pi with CSI Camera
         try:
-            from picamera2 import Picamera2
-            # We only use Picamera2 if accessing the default CSI camera (src=0)
-            if src == 0:
-                print("[CAMERA] Raspberry Pi Picamera2 library detected. Initializing CSI Camera Module...")
-                self.picam2 = Picamera2()
-                # Create a preview configuration (RGB format, 640x480)
-                config = self.picam2.create_preview_configuration(main={"format": "RGB888", "size": (640, 480)})
-                self.picam2.configure(config)
-                self.picam2.start()
-                self.is_pi_cam = True
-                print("[CAMERA] [SUCCESS] Raspberry Pi CSI Camera Module initialized.")
+            if config.USE_CSI_CAMERA:
+                from picamera2 import Picamera2
+                # We only use Picamera2 if accessing the default CSI camera (src=0)
+                if src == 0:
+                    print("[CAMERA] Raspberry Pi Picamera2 library detected. Initializing CSI Camera Module...")
+                    self.picam2 = Picamera2()
+                    # Create a preview configuration (RGB format, 640x480)
+                    preview_config = self.picam2.create_preview_configuration(main={"format": "RGB888", "size": (640, 480)})
+                    self.picam2.configure(preview_config)
+                    self.picam2.start()
+                    self.is_pi_cam = True
+                    print("[CAMERA] [SUCCESS] Raspberry Pi CSI Camera Module initialized.")
         except (ImportError, Exception):
             # Fall back to standard OpenCV VideoCapture
             pass

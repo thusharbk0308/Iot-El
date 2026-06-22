@@ -10,6 +10,10 @@ CONNECTION_MODE = "PI"
 PI_SERVO_PIN = 18              # GPIO pin (BCM numbering, GPIO 18 is Physical Pin 12)
 UNLOCK_DURATION = 3.0          # Seconds to remain unlocked
 
+# --- Camera Configurations ---
+USE_CSI_CAMERA = False         # Set to True for Pi CSI Camera Module, False for USB Webcam or Laptop camera
+CAMERA_SRC = 0                 # Camera input source index (usually 0)
+
 # --- Wi-Fi Credentials (Required for WIFI mode) ---
 # Enter your local Wi-Fi router settings here.
 # The ESP32 and your laptop must be connected to this same network.
