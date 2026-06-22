@@ -1,0 +1,5 @@
+opencv-python
+facenet-pytorch
+tqdm
+pyserial
+requests
